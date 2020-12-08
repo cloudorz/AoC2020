@@ -23,3 +23,5 @@ parseRaw = undefined
 results :: [Entry] -> Answer
 results  = undefined
 
+split :: String -> String -> [String]
+split p = map T.unpack . T.splitOn (T.pack p) . T.pack
