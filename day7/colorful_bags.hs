@@ -30,23 +30,23 @@ myBagDesc = "shiny gold bag"
 emptyBagDesc = "no other bags."
 
 results :: [Entry] -> Answer
-results es = (length $ allCheck es [(myBagDesc, "")], bagCountBy myBagDesc)
+results es = (myBagContianerCount es [myBagDesc], bagCountBy myBagDesc)
   where 
-    allCheck _ [] = []
-    allCheck xs ys = let (xs', ys') = foldr (classify (fst . unzip $ ys)) ([], []) xs 
-                      in ys' ++ allCheck xs' ys'
+    myBagContianerCount _ [] = 0
+    myBagContianerCount xs ys = let (xs', ys') = foldr (classify ys) ([], []) xs 
+                                      in length ys' + myBagContianerCount xs' ys'
     classify cs a b = let (h, bd) = a 
                        in if any (`isInfixOf` bd) cs 
-                             then second ((:) a) b 
-                             else first ((:) a) b
+                             then second (fst a :) b 
+                             else first (a :) b
     bagCountBy name = let body = findBody name es 
-                      in if body == "no other bags." 
+                      in if body == emptyBagDesc
                             then 0 
-                            else sum . map (\(n, s) -> n + n * bagCountBy s) . parseContainer $ body
+                            else sum . map (\(n, s) -> n + n * bagCountBy s) . parseBody $ body
     findBody s = fromMaybe emptyBagDesc . fmap snd . find (\(name, _) -> name `isInfixOf` s)
 
-parseContainer :: String -> [(Int, String)]
-parseContainer = map (\(x:xs) -> (digitToInt x, xs)) . split ", "
+parseBody :: String -> [(Int, String)]
+parseBody = map (\(x:xs) -> (digitToInt x, xs)) . split ", "
 
 split :: String -> String -> [String]
 split p = map T.unpack . T.splitOn (T.pack p) . T.pack
