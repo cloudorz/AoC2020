@@ -25,40 +25,28 @@ showResult (p1, p2) = "Part I answer: " ++ show p1 ++ ".\nPart II answer: " ++ s
 parseRaw :: String -> Entry
 parseRaw s = (head s, read . drop 1 $ s) 
 
+-- E: (1, 0) , W: (-1, 0), N: (0, 1), S: (0, -1)
+--
 results :: [Entry] -> Answer
-results es = (excute 'E' (0, 0) es, excute2 (10, 1) (0, 0) es)
+results es = (excute False (1, 0), excute True (10, 1))
   where
-    excute2 waypoint pos [] = pos
-    excute2 waypoint pos (one:actions) = if fst one `elem` ['N', 'S', 'E', 'W'] 
-                                            then excute2 (move (fst one) (snd one) waypoint) pos actions
-                                            else if fst one `elem` ['L', 'R'] 
-                                                    then excute2 (rotate (fst one) (snd one) waypoint) pos actions
-                                                    else excute2 waypoint (mergePos (snd one) waypoint pos) actions
-    excute direction pos [] = pos
-    excute direction pos (one:actions) = if fst one `elem` ['N', 'S', 'E', 'W'] 
-                                            then excute direction (move (fst one) (snd one) pos) actions 
-                                            else case one of 
-                                                   ('L', v) -> excute (degreeToDirection (directionToDegree direction + v)) pos actions
-                                                   ('R', v) -> excute (degreeToDirection (directionToDegree direction - v)) pos actions
-                                                   ('F', v) -> excute direction (move direction v pos) actions
-    move d v pos = case (d, v) of 
-                     ('N', v) -> second (+ v) pos
-                     ('S', v) -> second (+ (-v)) pos
-                     ('E', v) -> first (+ v) pos
-                     ('W', v) -> first (+ (-v)) pos
-    mergePos k (x, y) (e, n) = (k*x + e, k*y + n)
-    rotate d v pos = case (d, v) of
-                       ('R', 90) -> second (* (-1)) $ swap pos
-                       ('R', 270) -> first (* (-1)) $ swap pos
-                       (_, 180) -> bimap (* (-1)) (* (-1)) pos
-                       ('L', 90) -> first (* (-1)) $ swap pos
-                       ('L', 270) -> second (* (-1)) $ swap pos
-
-
--- N: 0, W: 90, S: 180, E: 270
-mapping = [('N', 0), ('W', 90), ('S', 180), ('E', 270)]
-directionToDegree :: Char -> Int
-directionToDegree d = fromMaybe 0 . fmap snd . find ((== d) . fst) $ mapping
-
-degreeToDirection :: Int -> Char
-degreeToDirection p = fromMaybe 'E' . fmap fst . find ((== mod p 360) . snd) $ mapping
+    excute p origin = excute_ origin (0, 0) es
+      where
+        excute_ origin pos [] = pos
+        excute_ origin pos (one:actions) = let (px, py) = case one of
+                                                            ('F', v) -> (origin, (scaleP v origin `plusP` pos))
+                                                            ('L', v) -> ((rotateP (-v) origin), pos)
+                                                            ('R', v) -> ((rotateP v origin), pos)
+                                                            _ -> (if p then first else second) (plusP (toPair one)) (origin, pos)
+                                            in excute_ px py actions
+    toPair c = case c of 
+                 ('N', v) -> (0, v)
+                 ('S', v) -> (0, -v)
+                 ('E', v) -> (v, 0)
+                 ('W', v) -> (-v, 0)
+    scaleP k (x, y) = (k*x, k*y)
+    plusP (x, y) (x1, y1) = (x+x1, y+y1)
+    -- x2 = cos * x1 + sin * y1, y2 = cos * y1 - sin * x1
+    rotateP :: Int -> (Int, Int) -> (Int, Int)
+    rotateP degree (x, y) = let p = fromIntegral degree/360*2*pi 
+                             in (round(cos p * fromIntegral x + sin p * fromIntegral y), round(cos p * fromIntegral y - sin p * fromIntegral x))
