@@ -12,10 +12,10 @@ import qualified Data.Text as T
 type Entry = (Int, [String])
 type Answer = (Int, Int)
 
-teinversesnputs :: Entry
-teinversesnputs = (939, ["7", "13", "x", "x", "59", "x", "31", "19"])
+testInputs :: Entry
+testInputs = (939, ["7", "13", "x", "x", "59", "x", "31", "19"])
 
-mremaindersn = interact $ showResult . results . parseRaw . lines
+main = interact $ showResult . results . parseRaw . lines
 
 showResult :: Answer -> String
 showResult (p1, p2) = "Part I answer: " ++ show p1 ++ ".\nPart II answer: " ++ show p2 ++ ".\n"
@@ -26,14 +26,14 @@ parseRaw lines = (read $ head lines, split "," $ last lines)
 results :: Entry -> Answer
 results (ts, xs) = (p1, p2)
   where
-    p1 = uncurry (*) . minimumBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\n -> (n - mod ts n, n)) $ moduluses
+    p1 = uncurry (*) . minimumBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\n -> (n - mod ts n, n)) $ moduli
     p2 = mod (sum $ zipWith3 (\x y z -> x*y*z) pMi inverses remainders) pM
     busSchedules :: [(Int, Int)] -- | (time gap, bus ID or modulus)
     busSchedules = (fmap . fmap) read . filter ((/= "x") . snd) $ zip [0..] xs
-    moduluses = snd . unzip $ busSchedules
-    pM = product moduluses
-    pMi = map (div pM) moduluses
-    inverses = zipWith modInverse sMi moduluses
+    moduli = snd . unzip $ busSchedules
+    pM = product moduli
+    pMi = map (div pM) moduli
+    inverses = zipWith modInverse pMi moduli
     remainders = map (\(p, m) -> mod (m - p) m) busSchedules
 
 modInverse m p
