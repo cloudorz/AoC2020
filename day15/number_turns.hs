@@ -36,25 +36,31 @@ turns th pres = turns_ (length pres) $ reverse pres
           | count == th = head pres
           | otherwise = let indices = take 2 . findIndices (== head pres) $ pres
                         in if length indices == 2
-                             then turns_ (succ count) (((indices !! 1) - (indices !! 0)):pres)
+                             then turns_ (succ count)
+                                         (((indices !! 1) - (indices !! 0)):pres)
                              else turns_ (succ count) (0:pres)
 
 
 type HashTable k v = H.BasicHashTable k v
-type Record = HashTable Int (Int, Int)
+type Record = HashTable Int Int
 
 turns2 :: Int -> [Int] -> IO Int
 turns2 nth pres = do
-                    record <- H.fromListWithSizeHint 30000000 kvList
-                    turns_ record (last kvList)
+  record <- H.fromListWithSizeHint nth kvList
+  turns_ record (last pres, 0, length pres)
   where
-    kvList = zip pres $ map ((,) 0) [1..]
-    turns_ :: Record -> (Int, (Int, Int)) -> IO Int
-    turns_ !record (!lastN, (!p, !l)) = if l == nth
-                                      then return lastN
-                                      else let newN = if p > 0 then l - p else 0
-                                           in do
-                                                res <- H.lookup record newN
-                                                case res of
-                                                   Nothing -> H.insert record newN (0, l+1) >> turns_ record (newN, (0, l+1))
-                                                   Just (p', l') -> H.insert record newN (l', l+1) >> turns_ record (newN, (l', l+1))
+    kvList = zip pres [1..]
+    turns_ :: Record -> (Int, Int, Int) -> IO Int
+    turns_ !record (!lastN, !newN, !lastIndex) = do
+      if lastIndex == nth
+        then return lastN
+        else do
+           res <- H.lookup record newN
+           let newIndex = succ lastIndex
+           case res of
+             Nothing -> do
+               H.insert record newN newIndex
+               turns_ record (newN, 0, newIndex)
+             Just oldIndex -> do
+               H.insert record newN newIndex
+               turns_ record (newN, (newIndex - oldIndex), newIndex)
