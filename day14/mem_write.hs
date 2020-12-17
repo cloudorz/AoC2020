@@ -8,11 +8,11 @@ import Data.List
 import Data.Bits
 import qualified Data.Text as T
 import Data.Char
-import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as Map
 
 type Entry = (String, [(Int, Int)])
 type Answer = (Int, Int)
-type Mem = Map.Map Int Int
+type Mem = Map.IntMap Int
 
 testInputs = "mask = XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X,mem[8] = 11,mem[7] = 101,mem[8] = 0"
 main = interact $ showResult . results . map parseRaw . lines
