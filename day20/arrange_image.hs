@@ -27,20 +27,35 @@ type AdjacentMatrix = [[Int]]
 
 data EdgeType = L|T|R|B
 
-main = interact $ showResult . results . map parseRaw . (map lines . split "\n\n")
+main = do
+  contents <- getContents
+  let tiles = map parseRaw.map lines.split "\n\n" $ contents
+      matrix = matrixFromTiles tiles
+      imageIDList = fst $ unzip tiles
+  putStrLn ("Tile ID: " ++ show imageIDList)
+  putStrLn $ showMatrix matrix
+  let answerOfPart1 = mulFourCornerIDs (zip (map sum matrix) imageIDList)
+  let chaosImage = rearrangeTiles matrix tiles
+      orderImage = adjustTiles chaosImage
+      mergedImage = jointImage orderImage
+  putStrLn $ "Origin Chaos Tiles: \n" ++ showImage chaosImage
+  putStrLn $ "Adjust Tiles: \n" ++ showImage orderImage
+  putStrLn $ "Joint Image:\n" ++ showTile mergedImage
+  let (tile, positions) = searchMonster monster mergedImage
+      monsterTile = markMonster tile positions
+      countOfSharp = countSharp monsterTile
+  putStrLn $ "Monster show: \n" ++ showTile monsterTile
+  putStrLn ("Part I: " ++ show answerOfPart1)
+  putStrLn ("Part II: " ++ show countOfSharp)
+  where
+    mulFourCornerIDs = product.snd.unzip.take 4.sort
+
 
 showResult :: Answer -> String
 showResult (p1, p2) = "Part I answer: " ++ p1 ++ ".\nPart II answer: " ++ p2 ++ ".\n"
 
 parseRaw :: [String] -> Tile
 parseRaw (n:es) = (read.delete ':'.drop 5 $ n, es)
-
-results :: [Tile] -> Answer
-results es =
-  let degreeIDPairs = zip (map sum (matrixFromTiles es)) (fst.unzip $ es)
-      (tile, positions) = searchMonster monster.jointImage.adjustTiles.rearrangeTiles $ es
-      mulFourCornerIDs = product.snd.unzip.take 4.sort
-  in (show $ mulFourCornerIDs degreeIDPairs , show $ countSharp (markMonster tile positions))
 
 -- Sea Monster
 type Monster = [String]
@@ -89,12 +104,20 @@ digitalMonster = concatMap (\(row, ps) -> map ((,) row) $ elemIndices '#' ps)
                            . zip [0..]
 
 -- Image
-jointImage :: Image -> Tile
-jointImage image = (0, content)
+imageToMatrix :: Image -> [[Tile]]
+imageToMatrix image = group values
   where
-    ((row, col), _) = M.findMax image
-    contentMatrix = [[ cutFourEdges.snd $ image M.! (row', col') | col' <- [0..col]] | row' <- [0..row]]
-    content = concatMap (foldl1' (zipWith (++))) contentMatrix
+    values = M.elems image
+    size = round.sqrt.fromIntegral.length $ values
+    group [] = []
+    group values = let (pres, succs) = splitAt size values in pres:group succs
+
+jointImage :: Image -> Tile
+jointImage image =
+  let ((row, col), _) = M.findMax image
+      contentMatrix = (fmap.fmap) (cutFourEdges.snd).imageToMatrix $ image --[[ cutFourEdges.snd $ image M.! (row', col') | col' <- [0..col]] | row' <- [0..row]]
+      content = concatMap (foldl1' (zipWith (++))) contentMatrix
+  in (0, content)
 
 adjustTiles :: Image -> Image
 adjustTiles image = M.mapWithKey convertTile image
@@ -109,8 +132,8 @@ adjustTiles image = M.mapWithKey convertTile image
 
  -- (0, 1) Right (0, -1) Left (1, 0) Down (-1, 0) Up
  -- snake recusion base on adjacent martix
-rearrangeTiles :: [Tile] -> Image
-rearrangeTiles ts =
+rearrangeTiles :: AdjacentMatrix -> [Tile] -> Image
+rearrangeTiles !matrix ts =
   let orderIndices = arrange_ ((0, 0), fstMinIndex, (0, 1)) matrix M.empty
   in M.map (ts !!) orderIndices
   where
@@ -134,21 +157,14 @@ rearrangeTiles ts =
                             (setColValueAt index 0 . setValueAt index nextIndex 0 $ matrix) -- reduce the martix
                             newCache
     !fstMinIndex = snd . minimum $ zip (map sum matrix) [0..]
-    !matrix = matrixFromTiles ts
-
-
-showImageIDs :: Image -> String
-showImageIDs image =
-  let ((row, col), _) = M.findMax image
-  in unlines . map (intercalate " ") $ [[ show.fst $ image M.! (row', col') | col' <- [0..col]] | row' <- [0..row]]
 
 showImage :: Image -> String
-showImage image = "IDs :\n" ++ ids ++ "\n\nContents" ++ contents
-  where
-    ((row, col), _) = M.findMax image
-    tilesMatrix = [[image M.! (row', col') | col' <- [0..col]] | row' <- [0..row]]
-    ids = unlines.map (intercalate " ".map show.fst.unzip) $ tilesMatrix
-    contents = unlines.map (unlines.foldl1' (zipWith (\s1 s2 -> s1++" "++s2)).snd.unzip) $ tilesMatrix
+showImage image =
+  let ((row, col), _) = M.findMax image
+      !tilesMatrix = [[ image M.! (row', col') | col' <- [0..col]] | row' <- [0..row]]
+      !ids = unlines.map (intercalate " ").(fmap.fmap) (show.fst) $ tilesMatrix
+      contents = unlines.map (unlines.foldl1' (zipWith (\s1 s2 -> s1++" "++s2)).snd.unzip) $ tilesMatrix
+  in "IDs :\n" ++ ids ++ "\n\nContents: \n" ++ contents
 
 -- Matrix
 matrixFromTiles :: [Tile] -> AdjacentMatrix
@@ -209,8 +225,8 @@ getFourEdges content = map (flip getEdge content) [R, B, L, T]
 
 allVariantContents :: Content -> [Content]
 allVariantContents content =
-  (take 4 . iterate rotateContent $ content)
-  ++ (take 4 . iterate rotateContent $ flipContent content)
+  let getFourContents = take 4 . iterate rotateContent
+  in getFourContents content ++ getFourContents (flipContent content)
 
 rotateContent :: Content -> Content -- clockwise
 rotateContent = flipContent . transpose
